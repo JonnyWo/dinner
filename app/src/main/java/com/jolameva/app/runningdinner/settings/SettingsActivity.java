@@ -2,6 +2,7 @@ package com.jolameva.app.runningdinner.settings;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.media.Ringtone;
@@ -12,23 +13,21 @@ import android.os.Bundle;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
-import android.support.v7.app.ActionBar;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.RingtonePreference;
+import android.support.annotation.NonNull;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.AlertDialog;
 import android.text.TextUtils;
 import android.view.MenuItem;
-import android.widget.ImageView;
-import android.widget.TextView;
+import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.RequestOptions;
-import com.facebook.drawee.view.SimpleDraweeView;
+import com.firebase.ui.auth.AuthUI;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.jolameva.app.runningdinner.R;
-import com.jolameva.app.runningdinner.login.ActivityLogin;
-import com.jolameva.app.runningdinner.login.callbacks.GetUserCallback;
-import com.jolameva.app.runningdinner.login.entities.User;
-import com.jolameva.app.runningdinner.login.requests.UserRequest;
+import com.jolameva.app.runningdinner.fbauth.AuthRunningActivity;
 
 import java.util.List;
 
@@ -178,8 +177,8 @@ public class SettingsActivity extends AppCompatPreferenceActivity implements Get
 
         // Dieser Code ist wichtig!! Hier wird das Layout des Preferenceheaders verändert.
         // Das Hier ist die einzige Methode bei dem man das Layout der Preference verändern kann!
-        setContentView(R.layout.test);
-        
+//        setContentView(R.layout.test);
+
         loadHeadersFromResource(R.xml.pref_headers, target);
 
     }
@@ -190,10 +189,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity implements Get
      */
     protected boolean isValidFragment(String fragmentName) {
         return PreferenceFragment.class.getName().equals(fragmentName)
-                || GeneralPreferenceFragment.class.getName().equals(fragmentName)
-                || DataSyncPreferenceFragment.class.getName().equals(fragmentName)
-                || NotificationPreferenceFragment.class.getName().equals(fragmentName);
-    }
+                || GeneralPreferenceFragment.class.getName().equals(fragmentName);}
 
     @Override
     public void onCompleted(User user) {
@@ -223,66 +219,45 @@ public class SettingsActivity extends AppCompatPreferenceActivity implements Get
             // guidelines.
             bindPreferenceSummaryToValue(findPreference("example_text"));
             bindPreferenceSummaryToValue(findPreference("example_list"));
-        }
 
-        @Override
-        public boolean onOptionsItemSelected(MenuItem item) {
-            int id = item.getItemId();
-            if (id == android.R.id.home) {
-                startActivity(new Intent(getActivity(), SettingsActivity.class));
-                return true;
-            }
-            return super.onOptionsItemSelected(item);
-        }
-    }
+            Preference logout = findPreference("pref_logout");
+            logout.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
 
-    /**
-     * This fragment shows notification preferences only. It is used when the
-     * activity is showing a two-pane settings UI.
-     */
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static class NotificationPreferenceFragment extends PreferenceFragment {
-        @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            addPreferencesFromResource(R.xml.pref_notification);
-            setHasOptionsMenu(true);
+                    AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                    builder.setMessage("Möchtest du dich abmelden")
+                            .setCancelable(false)
+                            .setPositiveButton("Ja", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int id) {
+                                    // Code fürs Abmelden
+                                    AuthUI.getInstance()
+                                            .signOut(getActivity())
+                                            .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                @Override
+                                                public void onComplete(@NonNull Task<Void> task) {
+                                                    if (task.isSuccessful()) {
+                                                        //TODO: Backstack clearen
+                                                        Intent intent = new Intent(getActivity(), AuthRunningActivity.class);
+                                                        startActivity(intent);
+                                                        getActivity().finish();
+                                                    } else {
+                                                    }
+                                                }
+                                            });
 
-            // Bind the summaries of EditText/List/Dialog/Ringtone preferences
-            // to their values. When their values change, their summaries are
-            // updated to reflect the new value, per the Android Design
-            // guidelines.
-            bindPreferenceSummaryToValue(findPreference("notifications_new_message_ringtone"));
-        }
-
-        @Override
-        public boolean onOptionsItemSelected(MenuItem item) {
-            int id = item.getItemId();
-            if (id == android.R.id.home) {
-                startActivity(new Intent(getActivity(), SettingsActivity.class));
-                return true;
-            }
-            return super.onOptionsItemSelected(item);
-        }
-    }
-
-    /**
-     * This fragment shows data and sync preferences only. It is used when the
-     * activity is showing a two-pane settings UI.
-     */
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static class DataSyncPreferenceFragment extends PreferenceFragment {
-        @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            addPreferencesFromResource(R.xml.pref_data_sync);
-            setHasOptionsMenu(true);
-
-            // Bind the summaries of EditText/List/Dialog/Ringtone preferences
-            // to their values. When their values change, their summaries are
-            // updated to reflect the new value, per the Android Design
-            // guidelines.
-            bindPreferenceSummaryToValue(findPreference("sync_frequency"));
+                                }
+                            })
+                            .setNegativeButton("Nein", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int id) {
+                                    dialog.cancel();
+                                }
+                            });
+                    AlertDialog alert = builder.create();
+                    alert.show();
+                    return true;
+                }
+            });
         }
 
         @Override
